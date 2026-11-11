@@ -1,0 +1,19 @@
+2026-10-09 20:53:28 [WARNING] (database): Auth failed: Invalid password for 'Mrinal'.
+2026-10-09 20:54:22 [INFO] (database): User 'Mrinal' authenticated successfully.
+2026-10-16 21:50:50 [INFO] (database): User 'Mrinal' authenticated successfully.
+2026-10-16 21:51:39 [INFO] (streamlit_app): New user submission by Mrinal: 'show all account_no. with Account_scheme as "savings"'
+2026-10-16 21:51:39 [INFO] (nlp2sql): Checking guardrail for user query: 'show all account_no. with Account_scheme as "savings"'
+2026-10-16 21:53:05 [INFO] (nlp2sql): Guardrail passed: VALID
+2026-10-16 21:53:05 [INFO] (nlp2sql): Sending prompt to LangChain Ollama for SQL generation...
+2026-10-16 21:57:11 [INFO] (nlp2sql): Generated SQL query: SELECT Account_no FROM savings_accounts WHERE Account_scheme = 'savings';
+2026-10-16 21:57:11 [INFO] (database): Executing SQL query: SELECT Account_no FROM savings_accounts WHERE Account_scheme = 'savings';
+2026-10-16 21:57:11 [INFO] (database): Execution successful. Returned 3 row(s).
+2026-11-03 22:00:45 [INFO] (database): User 'Mrinal' authenticated successfully.
+2026-11-03 22:01:18 [INFO] (streamlit_app): New user submission by Mrinal: 'show all account_no. with Account_scheme as "savings"'
+2026-11-03 22:01:18 [INFO] (nlp2sql): Checking guardrail for user query: 'show all account_no. with Account_scheme as "savings"'
+2026-11-03 22:02:59 [INFO] (nlp2sql): Guardrail passed: VALID
+2026-11-03 22:02:59 [INFO] (nlp2sql): Sending prompt to LangChain Ollama for SQL generation and logic explanation...
+2026-11-03 22:05:47 [INFO] (nlp2sql): Generated SQL: SELECT Account_no FROM savings_accounts WHERE Account_scheme = 'savings';
+2026-11-03 22:05:47 [INFO] (nlp2sql): Generated Logic: The query selects Account_no from the savings_accounts table where the Account_scheme column matches 'savings'. This is the correct table (savings_accounts) and column (Account_scheme) based on the schema, as the request specifically targets savings account schemes. No joins are needed since the user only requires data from a single table.
+2026-11-03 22:05:47 [INFO] (database): Executing SQL query: SELECT Account_no FROM savings_accounts WHERE Account_scheme = 'savings';
+2026-11-03 22:05:47 [INFO] (database): Execution successful. Returned 3 row(s).
