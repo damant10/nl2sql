@@ -5,8 +5,9 @@ from logger_config import setup_logger
 
 logger = setup_logger("database")
 
-DB_URL = 'mysql+pymysql://root:tiger@localhost/genai'
+DB_URL = "mysql+pymysql://root:tiger@localhost/genai"
 engine = create_engine(DB_URL)
+
 
 def getResults(query: str) -> pd.DataFrame:
     """
@@ -15,12 +16,13 @@ def getResults(query: str) -> pd.DataFrame:
     logger.info(f"Executing SQL query: {query}")
     try:
         with engine.connect() as conn:
-            df = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(text(query), conn)
             logger.info(f"Execution successful. Returned {len(df)} row(s).")
             return df
     except Exception as e:
         logger.error(f"Database query execution failed: {e}")
         raise
+
 
 def authenticate_user(user_name: str, plain_password: str) -> bool:
     """
@@ -36,9 +38,8 @@ def authenticate_user(user_name: str, plain_password: str) -> bool:
                 logger.warning(f"Auth failed: Username '{user_name}' not found.")
                 return False
 
-            stored_hash = result[0].encode("utf-8")  # Ensure the stored hash is in bytes
+            stored_hash = result[0].encode("utf-8")
             input_bytes = plain_password.encode("utf-8")
-            print(f"Stored hash: {stored_hash}, Input password bytes: {input_bytes}")  # Debugging line
 
             if bcrypt.checkpw(input_bytes, stored_hash):
                 logger.info(f"User '{user_name}' authenticated successfully.")
@@ -49,6 +50,7 @@ def authenticate_user(user_name: str, plain_password: str) -> bool:
     except Exception as e:
         logger.error(f"Error during authentication: {e}")
         return False
+
 
 if __name__ == "__main__":
     query = "SELECT * FROM customer"

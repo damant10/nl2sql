@@ -2,21 +2,20 @@ import streamlit as st
 from dataconnection import getResults, authenticate_user
 from nlp2sql import NLPtoSQl, is_relevant_query, is_safe_select_query
 from email_service import send_invalid_query_alert
-from logger_config import setup_logger
+from logger_config import setup_logger, set_log_user
 
 logger = setup_logger("streamlit_app")
 
 st.title("SQL Query Executor")
 
 # --- Session State Initialization ---
-#If the user has not been authenticated yet, consider them logged out."authenticated" is the name of a variable stored in the session.
-#variable authenticated Checks whether the user is logged in
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
-#No user is currently logged in, so we don't have any user information yet.
-#variable current_user Stores the currently logged-in user's information
 if "current_user" not in st.session_state:
     st.session_state.current_user = None
+
+# Sync current_user into the logging context on every Streamlit rerun
+set_log_user(st.session_state.current_user)
 
 # --- User Authentication Section ---
 st.subheader("User Verification")
@@ -33,7 +32,11 @@ if submit:
     if not clean_username or not password_input:
         st.warning("Please provide both username and password.")
         st.session_state.authenticated = False
+        st.session_state.current_user = None
+        set_log_user(None)
     else:
+        # Temporarily set the attempted username so auth logs record who tried to log in
+        set_log_user(clean_username)
         is_valid = authenticate_user(clean_username, password_input)
         if is_valid:
             st.session_state.authenticated = True
@@ -41,6 +44,8 @@ if submit:
             st.success(f"Welcome, {st.session_state.current_user}! Access granted.")
         else:
             st.session_state.authenticated = False
+            st.session_state.current_user = None
+            set_log_user(None)
             st.error("Invalid username or password. Please retry.")
 
 st.divider()
@@ -54,7 +59,7 @@ if st.session_state.authenticated:
         if not clean_input:
             st.warning("Please enter a question.")
         else:
-            logger.info(f"New user submission by {st.session_state.current_user}: '{clean_input}'")
+            logger.info(f"New user submission: '{clean_input}'")
 
             # Input Guardrail Check
             with st.spinner("Checking query scope..."):
@@ -69,14 +74,16 @@ if st.session_state.authenticated:
             else:
                 with st.spinner("Generating SQL query..."):
                     try:
-                        sql_query,reason = NLPtoSQl(clean_input)
+                        sql_query, reason = NLPtoSQl(clean_input)
                         st.write("Generated SQL Query:")
-                        st.code(sql_query, language='sql')
+                        st.code(sql_query, language="sql")
                         st.write(f"Logic of output is: {reason}")
 
                         # Output Guardrail Check
                         if not is_safe_select_query(sql_query):
-                            st.error("Can't perform the required query: Disallowed statement or dangerous operation detected.")
+                            st.error(
+                                "Can't perform the required query: Disallowed statement or dangerous operation detected."
+                            )
                         else:
                             df = getResults(sql_query)
                             st.write("Query Results:")

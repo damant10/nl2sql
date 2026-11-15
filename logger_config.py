@@ -1,85 +1,104 @@
+import contextvars
 import json
 import logging
+from datetime import datetime
 from sqlalchemy import create_engine, text
 
-# Database connection URL (matches your project's connection in dataconnection.py)
 DB_URL = "mysql+pymysql://root:tiger@localhost/genai"
+
+current_user_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "current_user", default="anonymous"
+)
+
+_shared_engine = create_engine(DB_URL, pool_recycle=3600)
+
+
+def set_log_user(username: str | None) -> None:
+    """Sets the current user for all subsequent log entries in the active context."""
+    current_user_var.set(username if username else "anonymous")
+
+
+class UserContextFilter(logging.Filter):
+    """Injects the current user from contextvars into every LogRecord."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.user = current_user_var.get()
+        return True
 
 
 class MySQLJSONHandler(logging.Handler):
-    """
-    Custom logging handler that formats log records into a specific JSON structure:
-    {
-      "timestamp": asctime,
-      "level": levelname,
-      "component": "name",
-      "message": message
-    }
-    and saves them to a MySQL table.
-    """
-
-    def __init__(self, db_url: str = DB_URL, table_name: str = "app_logs"):
+    def __init__(self, table_name: str = "app_logs"):
         super().__init__()
         self.table_name = table_name
-        self.date_format = "%Y-%m-%d %H:%M:%S"
-        self.engine = create_engine(db_url, pool_recycle=3600)
+        self.engine = _shared_engine
+        self._table_verified = False
         self._ensure_table_exists()
 
     def _ensure_table_exists(self):
-        """Creates the target logging table if it does not already exist."""
-        create_table_sql = f"""
+        """Creates the target logging table using JSON, falling back to LONGTEXT if needed."""
+        json_table_sql = f"""
         CREATE TABLE IF NOT EXISTS {self.table_name} (
             id INT AUTO_INCREMENT PRIMARY KEY,
             log_data JSON NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
+        longtext_table_sql = f"""
+        CREATE TABLE IF NOT EXISTS {self.table_name} (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            log_data LONGTEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
         try:
-            with self.engine.connect() as conn:
-                conn.execute(text(create_table_sql))
-                conn.commit()
+            with self.engine.begin() as conn:
+                conn.execute(text(json_table_sql))
+            self._table_verified = True
         except Exception as e:
-            # Fallback print to stdout if table creation fails
-            print(f"[ERROR] Could not initialize MySQL logging table: {e}")
+            print(f"[MySQLJSONHandler] JSON column creation failed ({e}), retrying with LONGTEXT...")
+            with self.engine.begin() as conn:
+                conn.execute(text(longtext_table_sql))
+            self._table_verified = True
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            # Format time as 'YYYY-MM-DD HH:MM:SS'
-            record.asctime = self.formatTime(record, self.date_format)
+            if not self._table_verified:
+                self._ensure_table_exists()
 
-            # Build the exact JSON schema requested
+            timestamp_str = datetime.fromtimestamp(record.created).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
             log_payload = {
-                "timestamp": record.asctime,
+                "timestamp": timestamp_str,
                 "level": record.levelname,
                 "component": record.name,
+                "user": getattr(record, "user", "anonymous"),
                 "message": record.getMessage(),
             }
 
             json_str = json.dumps(log_payload)
 
-            # Insert JSON string into the MySQL table
             insert_sql = text(
                 f"INSERT INTO {self.table_name} (log_data) VALUES (:payload)"
             )
-            with self.engine.connect() as conn:
+            with self.engine.begin() as conn:
                 conn.execute(insert_sql, {"payload": json_str})
-                conn.commit()
 
-        except Exception:
-            # Delegate to standard logging error handler to prevent crashing host app
+        except Exception as e:
+            print(f"[MySQLJSONHandler EMIT ERROR]: {e}")
             self.handleError(record)
 
 
 def setup_logger(name: str = "sql_app") -> logging.Logger:
-    """Configures and returns a logger connected to the MySQL JSON handler."""
     logger = logging.getLogger(name)
 
-    # Avoid duplicate handlers if the logger has already been initialized
     if not logger.handlers:
         logger.setLevel(logging.INFO)
+        logger.propagate = False
 
-        # Attach custom MySQL JSON handler
         db_handler = MySQLJSONHandler()
+        db_handler.addFilter(UserContextFilter())
         logger.addHandler(db_handler)
 
     return logger
