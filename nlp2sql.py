@@ -137,7 +137,7 @@ def is_relevant_query(user_query: str) -> bool:
         #pass user_query to guardrail_chain where it executes in a sequence > guardrail > llm > sql
         verdict = guardrail_chain.invoke({"user_query": user_query}).strip().upper()
         #This checks whether the word "VALID" exists inside the returned string.
-        is_valid = "VALID" in verdict
+        is_valid = verdict == "VALID"
 
         if is_valid:
             logger.info("Guardrail passed: VALID")

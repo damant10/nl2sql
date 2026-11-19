@@ -6,9 +6,9 @@ from logger_config import setup_logger
 logger = setup_logger("email_service")
 
 # Email credentials and config
-SENDER_EMAIL = "manukbanik30@gmail.com"       # Replace with your sending email
-SENDER_PASSWORD = "Sanchait@1"     # Replace with your 16-character App Password
-ALERT_RECIPIENT = "manukbanik30@gmail.com"
+SENDER_EMAIL = "debashisamant2016@gmail.com"       # Replace with your sending email
+SENDER_PASSWORD = "vtionkesxsofcxtj"     # Replace with your 16-character App Password
+ALERT_RECIPIENT = "debashisamant2016@gmail.com"
 
 def send_invalid_query_alert(rejected_query: str):
     """
