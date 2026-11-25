@@ -10,7 +10,7 @@ SENDER_EMAIL = "debashisamant2016@gmail.com"       # Replace with your sending e
 SENDER_PASSWORD = "vtionkesxsofcxtj"     # Replace with your 16-character App Password
 ALERT_RECIPIENT = "debashisamant2016@gmail.com"
 
-def send_invalid_query_alert(rejected_query: str):
+def send_invalid_query_alert(rejected_query: str, user_name: str):
     """
     Sends an email notification when a user triggers the input guardrail.
     """
@@ -41,5 +41,6 @@ SQL Query Executor Bot
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.sendmail(SENDER_EMAIL, ALERT_RECIPIENT, msg.as_string())
         logger.info(f"Notification email successfully sent to {ALERT_RECIPIENT}")
+        logger.alert(f"Content of the notification sent is: {rejected_query} for the user {user_name}")
     except Exception as e:
         logger.error(f"Failed to send alert email: {e}")
